@@ -1,0 +1,4 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Mon Jun 08 14:10:33 CST 2026
+@default-nexus-http\://10.95.161.65\:8930/content/groups/public/.lastUpdated=1780899033657
+http\://10.95.161.65\:8930/content/groups/public/.error=Could not transfer artifact com.xs\:xushu-rag-ai\:pom\:xs-1.0 from/to nexus (http\://10.95.161.65\:8930/content/groups/public/)\: Connect to 10.95.161.65\:8930 [/10.95.161.65] failed\: Connect timed out

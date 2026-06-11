@@ -1,4 +1,5 @@
-# IDE 配置文件
+# 暂存所有文件（.gitignore 里的会自动忽略）
+git add .# IDE 配置文件
 .idea/
 .vscode/
 *.iml

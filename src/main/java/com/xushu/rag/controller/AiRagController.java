@@ -17,45 +17,31 @@
 
 package com.xushu.rag.controller;
 
-import com.alibaba.cloud.ai.dashscope.rerank.DashScopeRerankModel;
-import com.alibaba.cloud.ai.model.RerankModel;
-import com.xushu.rag.annotation.Loggable;
-import com.xushu.rag.common.ApplicationConstant;
-import com.xushu.rag.common.ErrorCode;
-import com.xushu.rag.context.BaseContext;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.time.LocalDate;
+
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.PromptChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
-import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
-import org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter;
-import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
-import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.filter.Filter;
-import org.springframework.ai.vectorstore.milvus.MilvusVectorStore;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.jackson.JsonObjectSerializer;
-import org.springframework.core.io.Resource;
-import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
-import reactor.core.scheduler.Schedulers;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.io.IOException;
-import java.time.LocalDate;
-import java.util.List;
+import com.xushu.rag.annotation.Loggable;
+import com.xushu.rag.common.ApplicationConstant;
+import com.xushu.rag.context.BaseContext;
+
+import cn.hutool.json.JSON;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 @Tag(name = "AiRagController", description = "Rag接口")
 @Slf4j
 @RestController
@@ -67,8 +53,9 @@ public class AiRagController {
     VectorStore vectorStore;
 
 
+    //系统提示此，隐式的，全局的，所有对话都生效
     private static final String DEFAULT_SYSTEM_PROMPT = """
-                        你是"XS"知识库系统的对话助手，请以乐于助人的方式进行对话，
+                        你是"moko"知识库系统的对话助手，请以乐于助人的方式进行对话，
                         今天的日期：{current_data}
                         """;
 
@@ -76,11 +63,10 @@ public class AiRagController {
     public AiRagController(ChatModel  chatModel, ChatMemory chatMemory,
                            VectorStore vectorStore) {
         this.chatClient = ChatClient.builder(chatModel)
-                // 隐式
                 .defaultSystem(DEFAULT_SYSTEM_PROMPT)
                 .defaultAdvisors(
-                        PromptChatMemoryAdvisor.builder(chatMemory).build(),
-                        SimpleLoggerAdvisor.builder().build()
+                        PromptChatMemoryAdvisor.builder(chatMemory).build(), //对话记忆功能
+                        SimpleLoggerAdvisor.builder().build() // 日志记录器，打印对话内容
                 )
                 .build();
         this.vectorStore=vectorStore;
@@ -94,15 +80,18 @@ public class AiRagController {
         Long userId = BaseContext.getCurrentId();
         return chatClient.prompt()
                 .user(message)
-                .system(a -> a.param("current_data", LocalDate.now().toString()))
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
+                .system(a -> a.param("current_data", LocalDate.now().toString())) //传入当前日期
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId)) //传入用户ID，用于区分不同用户的对话
                 .advisors(QuestionAnswerAdvisor
-                        .builder(vectorStore)
+                        .builder(vectorStore) //添加向量数据库
+                        //检索向量数据库，设置检索分数，返回最相似的前5条
                         .searchRequest(
-                                SearchRequest.builder().query(message).similarityThreshold(0.1).topK(5).build()
+                                SearchRequest.builder().query(message).similarityThreshold(0.1).topK(5)
+                                //.filterExpression() 这里可以设置向量数据库的过滤条件，符合条件的再做相似度匹配
+                                .build()
                         )
                         .build())
-                .stream()// 流式方式
+                .stream()// 流式方式，返回的信息是一个字一个字地返回，边生成边返回
                 .content();
     }
 

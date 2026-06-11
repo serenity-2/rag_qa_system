@@ -95,10 +95,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         //开始分页查询
         PageHelper.startPage(userPageQueryDTO.getPage(), userPageQueryDTO.getPageSize());
 
-        Page<User> page = userMapper.pageQuery(userPageQueryDTO);
+        Page<User> pageResult = userMapper.pageQuery(userPageQueryDTO);
 
-        long total = page.size();
-        List<User> records = page.getResult();
+        long total = pageResult.getTotal();
+        List<User> records = pageResult.getResult();
 
         return new PageResult(total, records);
     }

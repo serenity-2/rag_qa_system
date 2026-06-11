@@ -8,7 +8,25 @@ package com.xushu.rag.controller;
  * @description: 知识库
  */
 
-import com.alibaba.fastjson2.JSON;
+import java.io.IOException;
+import java.util.Date;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.ai.document.Document;
+import org.springframework.ai.reader.tika.TikaDocumentReader;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.xushu.rag.common.ApplicationConstant;
 import com.xushu.rag.common.BaseResponse;
 import com.xushu.rag.common.ErrorCode;
@@ -17,26 +35,10 @@ import com.xushu.rag.entity.AliOssFile;
 import com.xushu.rag.pojo.dto.QueryFileDTO;
 import com.xushu.rag.service.AliOssFileService;
 import com.xushu.rag.utils.AliOssUtil;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.reader.TextReader;
-import org.springframework.ai.reader.tika.TikaDocumentReader;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.milvus.MilvusVectorStore;
-import org.springframework.ai.vectorstore.observation.VectorStoreObservationContext;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Tag(name = "KnowledgeController", description = "知识库管理接口")
 @Slf4j
@@ -52,8 +54,6 @@ public class KnowledgeController {
 
     @Autowired
     private TokenTextSplitter tokenTextSplitter;
-
-
 
 
     @Autowired
@@ -78,55 +78,45 @@ public class KnowledgeController {
         if (files.isEmpty()) {
             return ResultUtils.error(ErrorCode.PARAMS_ERROR, "请上传文件");
         }
-
-        // 上传文件
         for (MultipartFile file : files) {
-
-            // 上传OSS
-
+            //上传oss
             try {
-                // 原文件名
+                //原始文件名
                 String originalFilename = file.getOriginalFilename();
-                // 文件后缀
+                //文件后缀
                 String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-                // 随机文件名（OSS)
-                String objectName = UUID.randomUUID() + extension;
+                //随机文件名(用户上传的文件可能重复，避免覆盖)
+                String objectName = UUID.randomUUID().toString().replace("-", "") + extension;
+                //上传oss,返回文件访问路径
                 String url = aliOssUtil.upload(file.getBytes(), objectName);
-
-                // 向量化
-                // 1. 读取文件 txt pdf docx doc
+                
+                //向量化
+                //1.读取文件：txt pdf docx，doc
                 Resource resource = file.getResource();
+                //source — 来自 TikaDocumentReader 读取文件时，自动把文件名写入向量数据库的metadata字段：
                 TikaDocumentReader reader = new TikaDocumentReader(resource);
                 List<Document> documents = reader.read();
-
-
-
-                //documents.forEach(document -> {document.getMetadata().put("source",originalFilename)});
-                 // 2. 分词
+                
+                //2.按token分块，底层使用jtokkit 库：就是 OpenAI 官方的 token 计算器
+                //chunk_index、total_chunks、parent_document_id — 来自tokenTextSplitter.apply(documents) 切块时自动添加的。
                 List<Document> splitDocuments = tokenTextSplitter.apply(documents);
-                // 3. 向量化
-                // 4. 保存向量 自动调用向量模型向量化方法
+                //3.向量化
                 vectorStore.add(splitDocuments);
-
-                // 持久化到数据库
-                long currMillis = System.currentTimeMillis();
+                //4.持久化到数据库
+                long timeMillis = System.currentTimeMillis();
                 aliOssFileService.save(AliOssFile.builder()
                         .fileName(originalFilename)
-                        .vectorId(JSON.toJSONString(splitDocuments.stream().map(Document::getId).collect(Collectors.toList())))
                         .url(url)
-                        .createTime(new Date(currMillis))
-                        .updateTime(new Date(currMillis))
+                        .vectorId(splitDocuments.get(0).getId())
+                        .createTime(new Date(timeMillis))
+                        .updateTime(new Date(timeMillis))
                         .build());
-
+                    
+            } catch (IOException | RuntimeException e) {
+                log.error("文件上传失败", e);
+                return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "文件上传失败");
             }
-            catch (IOException e) {
-                log.error("上传文件失败", e);
-                return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "上传文件失败");
-            }
-            catch (Exception e) {
-                log.error("上传文件失败", e);
-                return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "向量化失败");
-            }
+            
         }
         return ResultUtils.success("文件上传成功");
     }

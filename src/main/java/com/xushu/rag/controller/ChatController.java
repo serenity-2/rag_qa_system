@@ -1,29 +1,27 @@
 package com.xushu.rag.controller;
 
+import java.util.List;
+
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.xushu.rag.annotation.Loggable;
 import com.xushu.rag.common.ApplicationConstant;
-import com.xushu.rag.common.ErrorCode;
 import com.xushu.rag.context.BaseContext;
 import com.xushu.rag.entity.SensitiveWord;
-import com.xushu.rag.exception.BusinessException;
 import com.xushu.rag.service.SensitiveWordService;
-import com.xushu.rag.utils.SearchUtils;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
-import org.springframework.ai.chat.client.advisor.PromptChatMemoryAdvisor;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
-
-import java.util.List;
-import java.util.Map;
 
 
 /**
@@ -50,7 +48,7 @@ public class ChatController {
 
         this.chatClient = builder
                 .defaultSystem("""
-                        你是一家名为“XS公司”的知识库系统的客户客服代理。请友好乐于助人，充满喜悦地回复。
+                        你是一家名为“上海桔悦科技有限公司”的知识库系统的客户客服代理。请友好乐于助人，充满喜悦地回复。
                         """)
                 .defaultAdvisors(
                         MessageChatMemoryAdvisor.builder(chatMemory).build() // CHAT MEMORY

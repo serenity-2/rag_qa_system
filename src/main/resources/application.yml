@@ -27,7 +27,7 @@ spring:
           password: "" # default: milvus
         databaseName: "default"
         collectionName: "vector_store" # default: vector_store
-        embeddingDimension: 1536 # default: 向量维度
+        embeddingDimension: 1024 # default: 向量维度
         indexType: IVF_FLAT # default: IVF_FLAT
         metricType: COSINE # default: COSINE
         initializeSchema: true # 自动创建集合
@@ -71,6 +71,10 @@ xushu:
 
 logging:
   level:
+    com:
+      xushu:
+        rag:
+          mapper: debug
     org:
       springframework:
         ai:

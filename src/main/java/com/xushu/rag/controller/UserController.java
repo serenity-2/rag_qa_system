@@ -188,4 +188,21 @@ public class UserController {
         userService.updateById(user);
         return ResultUtils.success("编辑成功");
     }
+
+    /**
+     * 删除用户
+     * @param id 用户ID
+     * @return
+     */
+    @DeleteMapping("/delete/{id}")
+    @Operation(summary = "delete", description = "根据id删除用户")
+    public BaseResponse delete(@PathVariable Long id) {
+        log.info("删除用户，id：{}", id);
+        boolean removed = userService.removeById(id);
+        if (removed) {
+            return ResultUtils.success("删除成功");
+        } else {
+            return ResultUtils.error("用户不存在");
+        }
+    }
 }

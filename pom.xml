@@ -186,6 +186,7 @@
         </dependency>
 
 
+        <!-- chatclient/chatmodel -->
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
@@ -214,6 +215,7 @@
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-advisors-vector-store</artifactId>
         </dependency>
+        <!-- milvus向量数据库 -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-vector-store-milvus</artifactId>
